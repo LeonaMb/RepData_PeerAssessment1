@@ -1,25 +1,115 @@
----
-title: "Reproducible Research: Peer Assessment 1"
-output: 
-  html_document:
-    keep_md: true
----
+# Reproducible Research Assignment
+Author: Leona M.
 
+```{r,  echo=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
 
 ## Loading and preprocessing the data
+We load the data from csv file into a variable and display the structure and summary of the data.
+```{r, echo=TRUE}
+raw_data_actv <- read.csv("activity.csv")
+str(raw_data_actv)
+summary(raw_data_actv)
+```
+There are 2304 records with NA values. Date column is not in a date format and needs to be converted.  
+Let's clean and convert the data and see again its structure and summary.
+```{r, echo=TRUE}
+data_actv <- raw_data_actv
+data_actv$date <- as.Date(data_actv$date)
+data_actv <- data_actv[!is.na(data_actv$steps),]
+str(data_actv)
+summary(data_actv)
+```
+Now we have 15264 observations after removing the 2304 NA values and we have converted the date.  
 
+## Average total number of steps taken per day  
 
+Let's draw an histogram of the total number of steps per day to see the distribution.   
+```{r hist_totalsteps}
+totalsteps<-tapply(data_actv$steps, data_actv$date, sum)
+hist(totalsteps, main="Histogram total nb of steps", xlab="Number of steps", breaks =10)
+rug(totalsteps)
+```
 
-## What is mean total number of steps taken per day?
+```{r, results="hide"}
+resmean <- as.integer(mean(totalsteps))
+resmed <- median(totalsteps)
+```
+The mean is : `r resmean` and the median is : `r resmed`.  
+## What is the average daily activity pattern?  
+Let's draw times series plot that shows for each interval, the average number of steps done accross the days.  
+```{r plot_avgsteps}
+avgsteps <- tapply(data_actv$steps, data_actv$interval, mean)
+intervals <- dimnames(avgsteps)[[1]]
+avgsteps_int <- as.integer(avgsteps)
+plot(intervals, avgsteps_int,  type = "l", main="Average nb of steps per interval", ylab = "Nb. of steps")
+```
+```{r, results="hide"}
+maxavgsteps <- avgsteps[avgsteps==max(avgsteps)]
+maxavgsteps_int <- as.integer(avgsteps[avgsteps==max(avgsteps)])
+maxinterv <- names(maxavgsteps)
+```
+The interval with the maximum number of steps average is : `r maxinterv` with an average number of steps of `r maxavgsteps_int`.  
+## Imputing missing values  
+Let's run again the summary on the original/non processed data set to get the total number of missing values. We have 17568 observations and 2304 NA's. 
+```{r}
+str(raw_data_actv)
+summary(raw_data_actv)
+```
+Let's create a new dataset where we replace each NA with the average for the interval that we computed before.  
+Below is displayed the new dataset structure and summary.  
+We still have the same 17568 observations but no more NA's. Also the dates are now converted.  
+```{r, echo=TRUE}
+data_actv_na <- raw_data_actv
+na_rows <- is.na(raw_data_actv)
+na_intv <- as.character(data_actv_na[na_rows,]$interval)
+na_intv_repl <- as.integer(avgsteps[na_intv])
+data_actv_na[na_rows,]$steps <- na_intv_repl
+data_actv_na$date <- as.Date(data_actv_na$date)
 
+str(data_actv_na)
+summary(data_actv_na)
+```
+Let's draw a histogram of the total number of steps taken each day. 
+```{r hist_totalsteps_no_NA}
+totalsteps2<-tapply(data_actv_na$steps, data_actv_na$date, sum)
+hist(totalsteps2, main="Histogram total nb of steps (NAs imputed)", xlab="Number of steps", breaks =10)
+rug(totalsteps2)
+```
+```{r, results="hide"}
+resmean2 <- as.integer(mean(totalsteps2))
+resmed2 <- median(totalsteps2)
+```
+Now the mean is : `r resmean2` and the median is : `r resmed2`.  
+In the dataset without NA's, we had : mean = `r resmean` and median = `r resmed`.  
+We can see that the values are now different. The impact of imputing missing values with the average for that interval lowered the mean and median.  
 
+## Differences in activity patterns between weekdays and weekends
+Let's add a new variable weekday with 2 factors: weekend / weekday.  
+Then we draw the time series plot with 2 panels: one for weekday and another for weekend.  
+```{r plot_avg_steps_wd_we}
+data_actv_na$weekday <- factor(weekdays(data_actv_na$date) %in% c('samedi', 'dimanche'), levels=c(TRUE, FALSE), labels=c('weekend', 'weekday'))
+data_actv_na_wd <- data_actv_na[data_actv_na$weekday=="weekday",]
+data_actv_na_we <- data_actv_na[data_actv_na$weekday=="weekend",]
 
-## What is the average daily activity pattern?
+avgsteps_wd <- tapply(data_actv_na_wd$steps, data_actv_na_wd$interval, mean)
+avgsteps_we <- tapply(data_actv_na_we$steps, data_actv_na_we$interval, mean)
 
+intervals_wd <- dimnames(avgsteps_wd)[[1]]
+intervals_we <- dimnames(avgsteps_we)[[1]]
 
+avgsteps_wd_int <- as.integer(avgsteps_wd)
+avgsteps_we_int <- as.integer(avgsteps_we)
 
-## Imputing missing values
+par(mfrow = c(2,1), mar=c(2,4,2,1))
+plot(intervals_wd, avgsteps_wd_int, type = "l", main="Average nb of steps per interval - Weekday", ylab = "Nb. of steps")
+plot(intervals_we, avgsteps_we_int,  type = "l", main="Average nb of steps per interval - Weekend", ylab = "Nb. of steps")
+```
+  
+We can see a difference in the activity during Weekday vs. Weekends.  
+Activity tends to start earlier during weekdays and later during weekends.  
+Activity finishes earlier during weekdays and later during weekends.
+During weekdays, there is a pic of activity between interval 750 and 1000. The rest of the time, the activity is  not very high.  
+During weekends, there are several pics of activity from interval 750 to interval 2000. 
 
-
-
-## Are there differences in activity patterns between weekdays and weekends?
